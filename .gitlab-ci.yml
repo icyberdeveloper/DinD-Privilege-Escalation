@@ -1,0 +1,32 @@
+variables:
+  DOCKER_REGISTRY_HOST: %YOUR INTERNAL DOCKER REGESTRY IF EXIST%
+
+services:
+  - name: $DOCKER_REGISTRY_HOST/docker:19.03-dind
+    alias: docker
+
+stages:
+  - build
+  - exploit
+
+build:
+  stage: build
+  image:
+    name: ${$DOCKER_REGISTRY_HOST}/kaniko-project/executor:debug
+    entrypoint: [""]
+  before_script:
+    - mkdir -p /kaniko/.docker
+    - cat "${DOCKER_AUTH_CONFIG}" > /kaniko/.docker/config.json
+  script:
+    - /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --destination $DOCKER_REGISTRY_HOST/appsec/dindshell:latest
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == "master"'
+
+exploit:
+  stage: exploit
+  script:
+    - docker run --privileged $DOCKER_REGISTRY_HOST/appsec/dindshell:latest
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == "master"'
+      when: manual
+      allow_failure: true
